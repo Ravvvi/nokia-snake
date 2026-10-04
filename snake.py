@@ -1,0 +1,183 @@
+import pygame
+import sys
+import random
+import os
+import json
+
+pygame.init()
+pygame.font.init()
+
+# Game Constants
+CELL_SIZE = 20
+GRID_WIDTH = 30
+GRID_HEIGHT = 20
+SCREEN_WIDTH = GRID_WIDTH * CELL_SIZE
+SCREEN_HEIGHT = GRID_HEIGHT * CELL_SIZE
+FPS = 12
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+SCORE_FILE = os.path.join(BASE_DIR, "snake_scores.json")
+
+NOKIA_BG = (168, 198, 78)
+NOKIA_FG = (33, 40, 25)
+
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+pygame.display.set_caption("Classic Nokia Snake")
+clock = pygame.time.Clock()
+
+font_title = pygame.font.SysFont("Courier New", 40, bold=True)
+font_menu = pygame.font.SysFont("Courier New", 20, bold=True)
+font_score = pygame.font.SysFont("Courier New", 18, bold=True)
+
+def load_scores():
+    try:
+        with open(SCORE_FILE, "r") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return []
+
+def save_score(new_score):
+    if new_score == 0: 
+        return 
+    scores = load_scores()
+    scores.append(new_score)
+    scores.sort(reverse=True) 
+    scores = scores[:5]
+    with open(SCORE_FILE, "w") as f:
+        json.dump(scores, f)
+
+def spawn_food(snake_body):
+    while True:
+        x = random.randint(0, GRID_WIDTH - 1) * CELL_SIZE
+        y = random.randint(0, GRID_HEIGHT - 1) * CELL_SIZE
+        if (x, y) not in snake_body:
+            return (x, y)
+
+def reset_game():
+    start_x = (GRID_WIDTH // 2) * CELL_SIZE
+    start_y = (GRID_HEIGHT // 2) * CELL_SIZE
+    
+    snake = [
+        (start_x, start_y),
+        (start_x - CELL_SIZE, start_y),
+        (start_x - 2 * CELL_SIZE, start_y)
+    ]
+    direction = "RIGHT"
+    next_direction = "RIGHT"
+    food = spawn_food(snake)
+    score = 0
+    return snake, direction, next_direction, food, score
+
+# INITIAL GAME STATE
+game_state = "MENU"
+running = True
+high_scores = load_scores()
+
+snake, direction, next_direction, food, score = reset_game()
+
+while running:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+            
+        if event.type == pygame.KEYDOWN:
+            if game_state == "MENU":
+                if event.key == pygame.K_RETURN:
+                    snake, direction, next_direction, food, score = reset_game()
+                    game_state = "PLAYING"
+                    high_scores = load_scores()
+                    
+            elif game_state == "GAMEOVER":
+                if event.key == pygame.K_RETURN:
+                    game_state = "MENU"
+                    high_scores = load_scores()
+
+            elif game_state == "PLAYING":
+                if event.key == pygame.K_UP and direction != "DOWN":
+                    next_direction = "UP"
+                elif event.key == pygame.K_DOWN and direction != "UP":
+                    next_direction = "DOWN"
+                elif event.key == pygame.K_LEFT and direction != "RIGHT":
+                    next_direction = "LEFT"
+                elif event.key == pygame.K_RIGHT and direction != "LEFT":
+                    next_direction = "RIGHT"
+
+    # GAME LOGIC & DRAWING
+    screen.fill(NOKIA_BG)
+
+    if game_state == "MENU":
+        pygame.draw.rect(screen, NOKIA_FG, (10, 10, SCREEN_WIDTH - 20, SCREEN_HEIGHT - 20), 4)
+        
+        title = font_title.render("SNAKE II", True, NOKIA_FG)
+        start_txt = font_menu.render("Press [ENTER] to Play", True, NOKIA_FG)
+        score_title = font_menu.render("TOP SCORES", True, NOKIA_FG)
+        
+        screen.blit(title, (SCREEN_WIDTH//2 - title.get_width()//2, 60))
+        screen.blit(start_txt, (SCREEN_WIDTH//2 - start_txt.get_width()//2, 140))
+        screen.blit(score_title, (SCREEN_WIDTH//2 - score_title.get_width()//2, 220))
+        
+        if not high_scores:
+            no_score = font_score.render("No scores yet!", True, NOKIA_FG)
+            screen.blit(no_score, (SCREEN_WIDTH//2 - no_score.get_width()//2, 260))
+        else:
+            for i, s in enumerate(high_scores):
+                s_txt = font_score.render(f"{i+1}.   {s}", True, NOKIA_FG)
+                screen.blit(s_txt, (SCREEN_WIDTH//2 - s_txt.get_width()//2, 260 + (i * 25)))
+
+    elif game_state == "PLAYING":
+        direction = next_direction
+        
+        head_x, head_y = snake[0]
+        
+        if direction == "UP": head_y -= CELL_SIZE
+        elif direction == "DOWN": head_y += CELL_SIZE
+        elif direction == "LEFT": head_x -= CELL_SIZE
+        elif direction == "RIGHT": head_x += CELL_SIZE
+            
+        new_head = (head_x, head_y)
+        
+        if (head_x < 0 or head_x >= SCREEN_WIDTH or head_y < 0 or head_y >= SCREEN_HEIGHT):
+            save_score(score)
+            game_state = "GAMEOVER"
+            
+        elif new_head in snake:
+            save_score(score)
+            game_state = "GAMEOVER"
+            
+        else:
+            snake.insert(0, new_head)
+            if new_head == food:
+                score += 10
+                food = spawn_food(snake)
+            else:
+                snake.pop()
+
+        food_rect = pygame.Rect(food[0] + 2, food[1] + 2, CELL_SIZE - 4, CELL_SIZE - 4)
+        pygame.draw.rect(screen, NOKIA_FG, food_rect)
+
+        # Draw Snake
+        for i, segment in enumerate(snake):
+            seg_rect = pygame.Rect(segment[0] + 1, segment[1] + 1, CELL_SIZE - 2, CELL_SIZE - 2)
+            pygame.draw.rect(screen, NOKIA_FG, seg_rect)
+
+        # Draw Score
+        score_text = font_score.render(f"Score: {score}", True, NOKIA_FG)
+        screen.blit(score_text, (10, 10))
+
+    elif game_state == "GAMEOVER":
+        # Draw Border
+        pygame.draw.rect(screen, NOKIA_FG, (10, 10, SCREEN_WIDTH - 20, SCREEN_HEIGHT - 20), 4)
+        
+        end_text = font_title.render("GAME OVER", True, NOKIA_FG)
+        score_txt = font_menu.render(f"Final Score: {score}", True, NOKIA_FG)
+        retry_txt = font_score.render("Press [ENTER] to return", True, NOKIA_FG)
+        
+        screen.blit(end_text, (SCREEN_WIDTH//2 - end_text.get_width()//2, SCREEN_HEIGHT//2 - 60))
+        screen.blit(score_txt, (SCREEN_WIDTH//2 - score_txt.get_width()//2, SCREEN_HEIGHT//2 + 10))
+        screen.blit(retry_txt, (SCREEN_WIDTH//2 - retry_txt.get_width()//2, SCREEN_HEIGHT//2 + 60))
+
+    pygame.display.flip()
+    clock.tick(FPS)
+
+pygame.quit()
+sys.exit()
