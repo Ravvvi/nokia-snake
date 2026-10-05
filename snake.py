@@ -4,11 +4,9 @@ import random
 import os
 import json
 
-# Initialize Pygame
 pygame.init()
 pygame.font.init()
 
-# Game Constants
 CELL_SIZE = 20
 GRID_WIDTH = 30
 GRID_HEIGHT = 20
@@ -17,11 +15,9 @@ SCREEN_HEIGHT = GRID_HEIGHT * CELL_SIZE
 BASE_FPS = 8
 MAX_FPS = 12
 
-# File for High Scores
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SCORE_FILE = os.path.join(BASE_DIR, "snake_scores.json")
 
-# Classic Nokia 3310 Color Palette
 NOKIA_BG = (168, 198, 78)    
 NOKIA_FG = (33, 40, 25)      
 
@@ -58,12 +54,11 @@ def spawn_food(snake_body, walls_blocks):
             return (x, y)
 
 def build_level(level):
-    # Adjust spawn position based on level
-    if level == 3:
+    if level >= 3:
         start_x = (GRID_WIDTH // 4) * CELL_SIZE
     else:
         start_x = (GRID_WIDTH // 2) * CELL_SIZE
-        
+
     start_y = (GRID_HEIGHT // 2) * CELL_SIZE
     
     snake = [
@@ -76,7 +71,6 @@ def build_level(level):
     
     walls = []
     if level == 2:
-        # Level 2: Hard Border Walls
         for x in range(0, SCREEN_WIDTH, CELL_SIZE):
             walls.append((x, 0)) 
             walls.append((x, SCREEN_HEIGHT - CELL_SIZE)) 
@@ -85,22 +79,25 @@ def build_level(level):
             walls.append((SCREEN_WIDTH - CELL_SIZE, y)) 
             
     elif level == 3:
-        # Level 3: Full Vertical Split Wall
         mid_x = (GRID_WIDTH // 2) * CELL_SIZE
         for y in range(0, SCREEN_HEIGHT, CELL_SIZE):
             walls.append((mid_x, y))
             
     elif level == 4:
-        # Level 4: Custom Drawn Walls 
-        # Horizontal wall on top right
         for x in range(12 * CELL_SIZE, SCREEN_WIDTH, CELL_SIZE):
-            walls.append((x, 5 * CELL_SIZE))
-            
-        # Vertical wall on bottom left
+            walls.append((x, 5 * CELL_SIZE))            
         for y in range(9 * CELL_SIZE, SCREEN_HEIGHT, CELL_SIZE):
             walls.append((7 * CELL_SIZE, y))
-            
-        # Vertical wall on bottom right
+        for y in range(12 * CELL_SIZE, SCREEN_HEIGHT, CELL_SIZE):
+            walls.append((22 * CELL_SIZE, y))
+
+    elif level == 5:
+        for x in range(12 * CELL_SIZE, SCREEN_WIDTH, CELL_SIZE):
+            walls.append((x, 5 * CELL_SIZE))
+        for y in range(0, 6 * CELL_SIZE, CELL_SIZE):
+            walls.append((12 * CELL_SIZE, y))
+        for y in range(9 * CELL_SIZE, SCREEN_HEIGHT, CELL_SIZE):
+            walls.append((7 * CELL_SIZE, y))            
         for y in range(12 * CELL_SIZE, SCREEN_HEIGHT, CELL_SIZE):
             walls.append((22 * CELL_SIZE, y))
 
@@ -108,7 +105,7 @@ def build_level(level):
     score = 0
     return snake, direction, next_direction, food, score, walls
 
-# --- INITIAL GAME STATE ---
+# INITIAL GAME STATE
 game_state = "MENU"
 running = True
 high_scores = load_scores()
@@ -124,7 +121,6 @@ while running:
             
         if event.type == pygame.KEYDOWN:
             if game_state == "MENU":
-                # Level Selection Logic
                 if event.key == pygame.K_1:
                     current_level = 1
                     snake, direction, next_direction, food, score, walls = build_level(current_level)
@@ -149,6 +145,12 @@ while running:
                     current_fps = BASE_FPS
                     game_state = "PLAYING"
                     high_scores = load_scores()
+                elif event.key == pygame.K_5:
+                    current_level = 5
+                    snake, direction, next_direction, food, score, walls = build_level(current_level)
+                    current_fps = BASE_FPS
+                    game_state = "PLAYING"
+                    high_scores = load_scores()
                     
             elif game_state == "GAMEOVER":
                 if event.key == pygame.K_RETURN:
@@ -165,7 +167,6 @@ while running:
                 elif event.key == pygame.K_RIGHT and direction != "LEFT":
                     next_direction = "RIGHT"
 
-    # --- GAME LOGIC & DRAWING ---
     screen.fill(NOKIA_BG)
 
     if game_state == "MENU":
@@ -176,13 +177,15 @@ while running:
         lvl2_txt = font_menu.render("Press [2] - Lvl 2", True, NOKIA_FG)
         lvl3_txt = font_menu.render("Press [3] - Lvl 3", True, NOKIA_FG)
         lvl4_txt = font_menu.render("Press [4] - Lvl 4", True, NOKIA_FG)
+        lvl5_txt = font_menu.render("Press [5] - Lvl 5", True, NOKIA_FG)
         score_title = font_menu.render("TOP SCORES", True, NOKIA_FG)
         
-        screen.blit(title, (SCREEN_WIDTH//2 - title.get_width()//2, 20))
-        screen.blit(lvl1_txt, (SCREEN_WIDTH//2 - lvl1_txt.get_width()//2, 70))
-        screen.blit(lvl2_txt, (SCREEN_WIDTH//2 - lvl2_txt.get_width()//2, 100))
-        screen.blit(lvl3_txt, (SCREEN_WIDTH//2 - lvl3_txt.get_width()//2, 130))
-        screen.blit(lvl4_txt, (SCREEN_WIDTH//2 - lvl4_txt.get_width()//2, 160))
+        screen.blit(title, (SCREEN_WIDTH//2 - title.get_width()//2, 10))
+        screen.blit(lvl1_txt, (SCREEN_WIDTH//2 - lvl1_txt.get_width()//2, 60))
+        screen.blit(lvl2_txt, (SCREEN_WIDTH//2 - lvl2_txt.get_width()//2, 85))
+        screen.blit(lvl3_txt, (SCREEN_WIDTH//2 - lvl3_txt.get_width()//2, 110))
+        screen.blit(lvl4_txt, (SCREEN_WIDTH//2 - lvl4_txt.get_width()//2, 135))
+        screen.blit(lvl5_txt, (SCREEN_WIDTH//2 - lvl5_txt.get_width()//2, 160))
         screen.blit(score_title, (SCREEN_WIDTH//2 - score_title.get_width()//2, 210))
         
         if not high_scores:
@@ -203,7 +206,7 @@ while running:
         elif direction == "LEFT": head_x -= CELL_SIZE
         elif direction == "RIGHT": head_x += CELL_SIZE
             
-        if current_level in [1, 3, 4]:
+        if current_level in [1, 3, 4, 5]:
             if head_x < 0:
                 head_x = SCREEN_WIDTH - CELL_SIZE
             elif head_x >= SCREEN_WIDTH:
@@ -217,12 +220,11 @@ while running:
         
         is_dead = False
         
-        # Self Collision
         if new_head in snake:
             is_dead = True
         elif current_level == 2 and (head_x < 0 or head_x >= SCREEN_WIDTH or head_y < 0 or head_y >= SCREEN_HEIGHT):
             is_dead = True
-        elif current_level in [2, 3, 4] and new_head in walls:
+        elif current_level in [2, 3, 4, 5] and new_head in walls:
             is_dead = True
             
         if is_dead:
@@ -237,18 +239,15 @@ while running:
             else:
                 snake.pop() 
 
-        # Draw Walls
         for wx, wy in walls:
             wall_rect = pygame.Rect(wx, wy, CELL_SIZE, CELL_SIZE)
             pygame.draw.rect(screen, NOKIA_FG, wall_rect)
             inner_bg = pygame.Rect(wx + 4, wy + 4, CELL_SIZE - 8, CELL_SIZE - 8)
             pygame.draw.rect(screen, NOKIA_BG, inner_bg)
 
-        # Draw Food
         food_rect = pygame.Rect(food[0] + 2, food[1] + 2, CELL_SIZE - 4, CELL_SIZE - 4)
         pygame.draw.rect(screen, NOKIA_FG, food_rect)
 
-        # Draw Snake
         for i, segment in enumerate(snake):
             seg_rect = pygame.Rect(segment[0] + 1, segment[1] + 1, CELL_SIZE - 2, CELL_SIZE - 2)
             pygame.draw.rect(screen, NOKIA_FG, seg_rect)
