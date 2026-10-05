@@ -4,11 +4,9 @@ import random
 import os
 import json
 
-# Initialize Pygame
 pygame.init()
 pygame.font.init()
 
-# Game Constants
 CELL_SIZE = 20
 GRID_WIDTH = 30
 GRID_HEIGHT = 20
@@ -17,11 +15,9 @@ SCREEN_HEIGHT = GRID_HEIGHT * CELL_SIZE
 BASE_FPS = 8
 MAX_FPS = 12
 
-# File for High Scores
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SCORE_FILE = os.path.join(BASE_DIR, "snake_scores.json")
 
-# Classic Nokia 3310 Color Palette
 NOKIA_BG = (168, 198, 78)    
 NOKIA_FG = (33, 40, 25)      
 
@@ -58,7 +54,11 @@ def spawn_food(snake_body, walls_blocks):
             return (x, y)
 
 def build_level(level):
-    start_x = (GRID_WIDTH // 2) * CELL_SIZE
+    if level == 3:
+        start_x = (GRID_WIDTH // 4) * CELL_SIZE
+    else:
+        start_x = (GRID_WIDTH // 2) * CELL_SIZE
+        
     start_y = (GRID_HEIGHT // 2) * CELL_SIZE
     
     snake = [
@@ -70,14 +70,18 @@ def build_level(level):
     next_direction = "RIGHT"
     
     walls = []
-    # Build border walls for Level 2
     if level == 2:
         for x in range(0, SCREEN_WIDTH, CELL_SIZE):
-            walls.append((x, 0)) # Top
-            walls.append((x, SCREEN_HEIGHT - CELL_SIZE)) # Bottom
+            walls.append((x, 0)) 
+            walls.append((x, SCREEN_HEIGHT - CELL_SIZE)) 
         for y in range(CELL_SIZE, SCREEN_HEIGHT - CELL_SIZE, CELL_SIZE):
-            walls.append((0, y)) # Left
-            walls.append((SCREEN_WIDTH - CELL_SIZE, y)) # Right
+            walls.append((0, y)) 
+            walls.append((SCREEN_WIDTH - CELL_SIZE, y)) 
+            
+    elif level == 3:
+        mid_x = (GRID_WIDTH // 2) * CELL_SIZE
+        for y in range(0, SCREEN_HEIGHT, CELL_SIZE):
+            walls.append((mid_x, y))
 
     food = spawn_food(snake, walls)
     score = 0
@@ -112,6 +116,12 @@ while running:
                     current_fps = BASE_FPS
                     game_state = "PLAYING"
                     high_scores = load_scores()
+                elif event.key == pygame.K_3:
+                    current_level = 3
+                    snake, direction, next_direction, food, score, walls = build_level(current_level)
+                    current_fps = BASE_FPS
+                    game_state = "PLAYING"
+                    high_scores = load_scores()
                     
             elif game_state == "GAMEOVER":
                 if event.key == pygame.K_RETURN:
@@ -128,7 +138,7 @@ while running:
                 elif event.key == pygame.K_RIGHT and direction != "LEFT":
                     next_direction = "RIGHT"
 
-    # --- GAME LOGIC & DRAWING ---
+    # GAME LOGIC & DRAWING
     screen.fill(NOKIA_BG)
 
     if game_state == "MENU":
@@ -137,20 +147,22 @@ while running:
         title = font_title.render("SNAKE II", True, NOKIA_FG)
         lvl1_txt = font_menu.render("Press [1] - Lvl 1 (Wrap)", True, NOKIA_FG)
         lvl2_txt = font_menu.render("Press [2] - Lvl 2 (Walls)", True, NOKIA_FG)
+        lvl3_txt = font_menu.render("Press [3] - Lvl 3 (Split)", True, NOKIA_FG)
         score_title = font_menu.render("TOP SCORES", True, NOKIA_FG)
         
-        screen.blit(title, (SCREEN_WIDTH//2 - title.get_width()//2, 40))
-        screen.blit(lvl1_txt, (SCREEN_WIDTH//2 - lvl1_txt.get_width()//2, 110))
-        screen.blit(lvl2_txt, (SCREEN_WIDTH//2 - lvl2_txt.get_width()//2, 140))
-        screen.blit(score_title, (SCREEN_WIDTH//2 - score_title.get_width()//2, 220))
+        screen.blit(title, (SCREEN_WIDTH//2 - title.get_width()//2, 30))
+        screen.blit(lvl1_txt, (SCREEN_WIDTH//2 - lvl1_txt.get_width()//2, 90))
+        screen.blit(lvl2_txt, (SCREEN_WIDTH//2 - lvl2_txt.get_width()//2, 120))
+        screen.blit(lvl3_txt, (SCREEN_WIDTH//2 - lvl3_txt.get_width()//2, 150))
+        screen.blit(score_title, (SCREEN_WIDTH//2 - score_title.get_width()//2, 210))
         
         if not high_scores:
             no_score = font_score.render("No scores yet!", True, NOKIA_FG)
-            screen.blit(no_score, (SCREEN_WIDTH//2 - no_score.get_width()//2, 260))
+            screen.blit(no_score, (SCREEN_WIDTH//2 - no_score.get_width()//2, 250))
         else:
             for i, s in enumerate(high_scores):
                 s_txt = font_score.render(f"{i+1}.   {s}", True, NOKIA_FG)
-                screen.blit(s_txt, (SCREEN_WIDTH//2 - s_txt.get_width()//2, 260 + (i * 25)))
+                screen.blit(s_txt, (SCREEN_WIDTH//2 - s_txt.get_width()//2, 250 + (i * 25)))
 
     elif game_state == "PLAYING":
         direction = next_direction
@@ -162,8 +174,7 @@ while running:
         elif direction == "LEFT": head_x -= CELL_SIZE
         elif direction == "RIGHT": head_x += CELL_SIZE
             
-        if current_level == 1:
-            # Level 1: Screen Wrap-Around Logic
+        if current_level in [1, 3]:
             if head_x < 0:
                 head_x = SCREEN_WIDTH - CELL_SIZE
             elif head_x >= SCREEN_WIDTH:
@@ -173,40 +184,29 @@ while running:
             elif head_y >= SCREEN_HEIGHT:
                 head_y = 0
                 
-            new_head = (head_x, head_y)
+        new_head = (head_x, head_y)
+        
+        is_dead = False
+        
+        # Self Collision
+        if new_head in snake:
+            is_dead = True
+        elif current_level == 2 and (head_x < 0 or head_x >= SCREEN_WIDTH or head_y < 0 or head_y >= SCREEN_HEIGHT):
+            is_dead = True
+        elif current_level in [2, 3] and new_head in walls:
+            is_dead = True
             
-            # Self Collision Only
-            if new_head in snake:
-                save_score(score)
-                game_state = "GAMEOVER"
+        if is_dead:
+            save_score(score)
+            game_state = "GAMEOVER"
+        else:
+            snake.insert(0, new_head)
+            if new_head == food:
+                score += 10
+                food = spawn_food(snake, walls)
+                current_fps = min(MAX_FPS, BASE_FPS + (len(snake) - 3) // 3)
             else:
-                snake.insert(0, new_head)
-                if new_head == food:
-                    score += 10
-                    food = spawn_food(snake, walls)
-                    current_fps = min(MAX_FPS, BASE_FPS + (len(snake) - 3) // 3)
-                else:
-                    snake.pop() 
-
-        elif current_level == 2:
-            # Level 2: Hard Walls Collision Logic
-            new_head = (head_x, head_y)
-            
-            # Wall Collision or Out of Bounds or Self Collision
-            if (new_head in snake or new_head in walls or 
-                head_x < 0 or head_x >= SCREEN_WIDTH or 
-                head_y < 0 or head_y >= SCREEN_HEIGHT):
-                
-                save_score(score)
-                game_state = "GAMEOVER"
-            else:
-                snake.insert(0, new_head)
-                if new_head == food:
-                    score += 10
-                    food = spawn_food(snake, walls)
-                    current_fps = min(MAX_FPS, BASE_FPS + (len(snake) - 3) // 3)
-                else:
-                    snake.pop() 
+                snake.pop() 
 
         # Draw Walls
         for wx, wy in walls:
@@ -223,7 +223,6 @@ while running:
         for i, segment in enumerate(snake):
             seg_rect = pygame.Rect(segment[0] + 1, segment[1] + 1, CELL_SIZE - 2, CELL_SIZE - 2)
             pygame.draw.rect(screen, NOKIA_FG, seg_rect)
-
 
     elif game_state == "GAMEOVER":
         pygame.draw.rect(screen, NOKIA_FG, (10, 10, SCREEN_WIDTH - 20, SCREEN_HEIGHT - 20), 4)
