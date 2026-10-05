@@ -4,6 +4,7 @@ import random
 import os
 import json
 
+# Initialize Pygame
 pygame.init()
 pygame.font.init()
 
@@ -13,16 +14,19 @@ GRID_WIDTH = 30
 GRID_HEIGHT = 20
 SCREEN_WIDTH = GRID_WIDTH * CELL_SIZE
 SCREEN_HEIGHT = GRID_HEIGHT * CELL_SIZE
-FPS = 12
+BASE_FPS = 8
+MAX_FPS = 12
 
+# File for High Scores
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SCORE_FILE = os.path.join(BASE_DIR, "snake_scores.json")
 
-NOKIA_BG = (168, 198, 78)
-NOKIA_FG = (33, 40, 25)
+# Classic Nokia 3310 Color Palette
+NOKIA_BG = (168, 198, 78)    
+NOKIA_FG = (33, 40, 25)      
 
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption("Classic Nokia Snake")
+pygame.display.set_caption("Classic Nokia Snake (Dynamic FPS)")
 clock = pygame.time.Clock()
 
 font_title = pygame.font.SysFont("Courier New", 40, bold=True)
@@ -68,10 +72,11 @@ def reset_game():
     score = 0
     return snake, direction, next_direction, food, score
 
-# INITIAL GAME STATE
+# --- INITIAL GAME STATE ---
 game_state = "MENU"
 running = True
 high_scores = load_scores()
+current_fps = BASE_FPS
 
 snake, direction, next_direction, food, score = reset_game()
 
@@ -84,6 +89,7 @@ while running:
             if game_state == "MENU":
                 if event.key == pygame.K_RETURN:
                     snake, direction, next_direction, food, score = reset_game()
+                    current_fps = BASE_FPS
                     game_state = "PLAYING"
                     high_scores = load_scores()
                     
@@ -102,7 +108,7 @@ while running:
                 elif event.key == pygame.K_RIGHT and direction != "LEFT":
                     next_direction = "RIGHT"
 
-    # GAME LOGIC & DRAWING
+    # --- GAME LOGIC & DRAWING ---
     screen.fill(NOKIA_BG)
 
     if game_state == "MENU":
@@ -134,24 +140,37 @@ while running:
         elif direction == "LEFT": head_x -= CELL_SIZE
         elif direction == "RIGHT": head_x += CELL_SIZE
             
+        # Screen Wrap-Around Logic
+        if head_x < 0:
+            head_x = SCREEN_WIDTH - CELL_SIZE
+        elif head_x >= SCREEN_WIDTH:
+            head_x = 0
+            
+        if head_y < 0:
+            head_y = SCREEN_HEIGHT - CELL_SIZE
+        elif head_y >= SCREEN_HEIGHT:
+            head_y = 0
+            
         new_head = (head_x, head_y)
         
-        if (head_x < 0 or head_x >= SCREEN_WIDTH or head_y < 0 or head_y >= SCREEN_HEIGHT):
+        # Check Collisions (Self Only)
+        if new_head in snake:
             save_score(score)
             game_state = "GAMEOVER"
-            
-        elif new_head in snake:
-            save_score(score)
-            game_state = "GAMEOVER"
-            
         else:
             snake.insert(0, new_head)
+            
+            # Check Food Collision
             if new_head == food:
                 score += 10
                 food = spawn_food(snake)
+                
+                # Dynamic FPS Logic: Increase 1 FPS for every 3 segments added, capped at MAX_FPS
+                current_fps = min(MAX_FPS, BASE_FPS + (len(snake) - 3) // 3)
             else:
-                snake.pop()
+                snake.pop() 
 
+        # Draw Food
         food_rect = pygame.Rect(food[0] + 2, food[1] + 2, CELL_SIZE - 4, CELL_SIZE - 4)
         pygame.draw.rect(screen, NOKIA_FG, food_rect)
 
@@ -160,12 +179,8 @@ while running:
             seg_rect = pygame.Rect(segment[0] + 1, segment[1] + 1, CELL_SIZE - 2, CELL_SIZE - 2)
             pygame.draw.rect(screen, NOKIA_FG, seg_rect)
 
-        # Draw Score
-        score_text = font_score.render(f"Score: {score}", True, NOKIA_FG)
-        screen.blit(score_text, (10, 10))
 
     elif game_state == "GAMEOVER":
-        # Draw Border
         pygame.draw.rect(screen, NOKIA_FG, (10, 10, SCREEN_WIDTH - 20, SCREEN_HEIGHT - 20), 4)
         
         end_text = font_title.render("GAME OVER", True, NOKIA_FG)
@@ -177,7 +192,12 @@ while running:
         screen.blit(retry_txt, (SCREEN_WIDTH//2 - retry_txt.get_width()//2, SCREEN_HEIGHT//2 + 60))
 
     pygame.display.flip()
-    clock.tick(FPS)
+    
+    # Tick with dynamic FPS
+    if game_state == "PLAYING":
+        clock.tick(current_fps)
+    else:
+        clock.tick(15)
 
 pygame.quit()
 sys.exit()
